@@ -13,7 +13,7 @@
 PSscraper <- function(month) {
         
         ## first set working directory
-                
+        
         ## load XML library
         library(XML)
         
@@ -27,7 +27,7 @@ PSscraper <- function(month) {
         ## note that the list of selected authors can be modified to scrape articles from different authors
         
         websitesList <- read.csv("PSwebsites.csv", header = TRUE)
-        websites <- unlist(websitesList)
+        websites <- apply(websitesList, 1, function(x) as.character(x))
         numWebsites <- length(websites)
         
         ## extract url for author's latest article
@@ -44,30 +44,32 @@ PSscraper <- function(month) {
                 ## extract and clean url for most recent article 
                 urlList <- grep("/commentary", text, value = TRUE)
                 url <- urlList[1]
-                cleaningUrl1 <- sub("<article class.+<a href=\"", "", url)
-                cleaningUrl2 <- sub("\">", "", cleaningUrl1)
+                cleaningUrl1 <- sub("<article class.+?href=\"", "", url)
+                cleaningUrl2 <- sub("\".+class=\"img-container.+\">", "", cleaningUrl1)
                 cleanUrl <- paste("http://www.project-syndicate.org", cleaningUrl2, sep = "")
                 
                 ## extract author's name for appending to beginning of article in masterText file
-                roughNames <- gsub("http://www.project-syndicate.org/columnist/", "", websites)
-                roughNames2 <- gsub("--", " ", roughnames)
-                authorName <- gsub("-", " ", roughnames2)
+                roughNames <- gsub("http://www.project-syndicate.org/columnist/", "", websites[i])
+                roughNames2 <- gsub("--", " ", roughNames)
+                authorName <- gsub("-", " ", roughNames2)
                 print(authorName)
                 
                 ## navigate to latest article website
                 ## check to see if latest article is from current (specified) month
-                               
+                
                 fileUrl <- cleanUrl
                 doc <- htmlTreeParse(fileUrl, useInternal = TRUE)
                 saveXML(doc, "article.txt")
                 article <- file("article.txt")
                 xmltext <- readLines(article)
-                articleDateList <- grep("datetime", xmltext, value = TRUE)
+                articleDateList <- grep("pub_date", xmltext, value = TRUE)
                 articleDate <- articleDateList[1]
-                cleaningArticleDate1 <- sub("<time pubdate=\"pubdate\" itemprop=\"datePublished\" datetime=\"", "", articleDate)
-                cleaningArticleDate2 <- strsplit(cleaningArticleDate1, "-")
-                cleaningArticleDate3 <- unlist(cleaningArticleDate2)
-                articleMonth <- cleaningArticleDate3[2]
+                cleaningArticleDate1 <- sub("<meta.+pub_date\":\"", 
+                                            "", articleDate)
+                cleaningArticleDate2 <- sub("T.+>", "", cleaningArticleDate1)
+                cleaningArticleDate3 <- strsplit(cleaningArticleDate2, "-")
+                cleaningArticleDate4 <- unlist(cleaningArticleDate3)
+                articleMonth <- cleaningArticleDate4[2]
                 
                 ## extract article text if latest article is from current (specified) month
                 if(articleMonth == month) {
@@ -89,20 +91,22 @@ PSscraper <- function(month) {
                 
                 if(articleMonth != month) {
                         url2 <- urlList[5]
-                        cleaningUrl3 <- sub("</article><article class.+<a href=\"", "", url2)
-                        cleaningUrl4 <- sub("\">", "", cleaningUrl3)
+                        cleaningUrl3 <- sub("</article.+?href=\"", "", url2)
+                        cleaningUrl4 <- sub("\".+class=\"img-container.+copyright\">", "", cleaningUrl3)
                         cleanUrl <- paste("http://www.project-syndicate.org", cleaningUrl4, sep = "")
                         fileUrl <- cleanUrl
                         doc <- htmlTreeParse(fileUrl, useInternal = TRUE)
                         saveXML(doc, "article.txt")
                         article <- file("article.txt")
                         xmltext <- readLines(article)
-                        articleDateList <- grep("datetime", xmltext, value = TRUE)
+                        articleDateList <- grep("date", xmltext, value = TRUE)
                         articleDate <- articleDateList[1]
-                        cleaningArticleDate1 <- sub("<time pubdate=\"pubdate\" itemprop=\"datePublished\" datetime=\"", "", articleDate)
-                        cleaningArticleDate2 <- strsplit(cleaningArticleDate1, "-")
-                        cleaningArticleDate3 <- unlist(cleaningArticleDate2)
-                        articleMonth <- cleaningArticleDate3[2]
+                        cleaningArticleDate1 <- sub("<meta.+pub_date\":\"", 
+                                                    "", articleDate)
+                        cleaningArticleDate2 <- sub("T.+>", "", cleaningArticleDate1)
+                        cleaningArticleDate3 <- strsplit(cleaningArticleDate2, "-")
+                        cleaningArticleDate4 <- unlist(cleaningArticleDate3)
+                        articleMonth <- cleaningArticleDate4[2]
                         if(articleMonth == month) {
                                 text <- xpathSApply(doc, "//div[@class='body']", xmlValue)
                                 text2 <- paste(text, "{{split}}")
@@ -125,4 +129,3 @@ PSscraper <- function(month) {
         close(masterTextFile)
         print("PS file created")
 }
-

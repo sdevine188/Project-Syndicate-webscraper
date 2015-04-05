@@ -54,6 +54,7 @@ ps_scraper <- function(month) {
                         if(str_sub(url_article, -2, -1) != month){
                                 error <- paste(author_name, "did not write an article for this month.", sep = " ")
                                 print(error)
+                                next
                         }
                 }
                 

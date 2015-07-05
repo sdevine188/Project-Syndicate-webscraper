@@ -63,7 +63,7 @@ ps_scraper <- function(month) {
                 title <- xpathSApply(xml_article, "//header/h1", xmlValue)
                 article <- xpathSApply(xml_article, "//div[@itemprop = \"articleBody\"]/child::p", xmlValue)
                 article <- paste(article, collapse = " ")
-                article <- paste(author_name, "-", title, article, "{{split}}", sep = " ")
+                article <- paste(author_name, ". ", title, ". ", article, "{{split}}", sep = " ")
                 
                 ## append article to master_text
                 master_text <- append(master_text, article)

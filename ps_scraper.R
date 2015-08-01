@@ -30,6 +30,9 @@ ps_scraper <- function(month) {
         websites_list <- read.csv("PSwebsites.csv", header = TRUE)
         websites <- apply(websites_list, 1, function(x) as.character(x))
         num_websites <- length(websites)
+        article_num <- 0
+        month_list <- c("January", "February", "March", "April", "May", "June", "July", "August", "September",
+                           "October", "Novermber", "December")
         
         ## extract url for author's latest article
         
@@ -63,11 +66,17 @@ ps_scraper <- function(month) {
                 title <- xpathSApply(xml_article, "//header/h1", xmlValue)
                 article <- xpathSApply(xml_article, "//div[@itemprop = \"articleBody\"]/child::p", xmlValue)
                 article <- paste(article, collapse = " ")
-                article <- paste(author_name, ". ", title, ". ", article, "{{split}}", sep = " ")
+                article_num <- article_num + 1
+                article_month <- month_list[as.numeric(as.character(month))]
+                article <- paste("Project Syndicate - ", article_month, " - ", "Article ", article_num, " of ", 
+                                 "zztotalarticleszz", ".", author_name, ". ", title, ". ", article, "{{split}}", sep = " ")
                 
                 ## append article to master_text
                 master_text <- append(master_text, article)
         }
+        
+        # str_replace to input final article count
+        master_text <- str_replace(master_text, "zztotalarticleszz", article_num)
         
         ## create output text file to working diretory
         writeLines(master_text, "ps.txt")

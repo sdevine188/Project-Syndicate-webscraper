@@ -53,15 +53,16 @@ ps_scraper <- function(month) {
                         html_nodes("a") %>% 
                         html_attr("href") %>% .[[1]]       
                 url_article <- paste("http://www.project-syndicate.org", toString(article_subdomain), sep = "")
-                
+
                 ## check to see if article is written in current month.  if not, get next article
                 if(str_sub(url_article, -2, -1) != month){
+                        print("getting previous article")
                         article_subdomain <- html %>% html_nodes("[id = tab-commentaries]") %>% 
                                 html_nodes("article") %>% .[[2]] %>%
                                 html_nodes("a") %>%
                                 html_attr("href") %>% .[[1]]               
                         url_article <- paste("http://www.project-syndicate.org", toString(article_subdomain), sep = "")
-                        
+
                         ## print error if second article month does not match current month
                         if(str_sub(url_article, -2, -1) != month){
                                 error <- paste(author_name, "did not write an article for this month.", sep = " ")
@@ -72,10 +73,18 @@ ps_scraper <- function(month) {
                 
                 ## get article text
                 html_article <- read_html(url_article)
-                title <- html_article %>% html_nodes("[itemprop = headline]") %>% html_text()
+                title <- html_article %>% html_nodes("header") %>%
+                        html_nodes("[itemprop = headline]") %>%
+                        html_text()
                 article <- html_article %>% html_nodes("[itemprop = articleBody]") %>% 
                         html_nodes("p") %>%
                         html_text()
+                
+                # remove random advertisements in article text
+                article <- article[!grepl("PS On Point: Your review",
+                                           article)]
+                article <- str_replace(article, "Project Syndicate needs your help to provide readers everywhere equal access to the ideas and debates shaping their lives.", "")
+                
                 article <- paste(article, collapse = " ")
                 article_num <- article_num + 1
                 article_month <- month_list[as.numeric(as.character(month))]

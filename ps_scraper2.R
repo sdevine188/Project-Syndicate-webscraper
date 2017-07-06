@@ -19,6 +19,7 @@ ps_scraper <- function(month) {
         ## load XML library
         library(XML)
         library(stringr)
+        library(rvest)
         
         ## create empty list to which all articles will be appended
         master_text <- c()
@@ -43,7 +44,8 @@ ps_scraper <- function(month) {
                 ## extract author's name for appending to beginning of article in masterText file
                 rough_name <- str_replace(websites[i], "http://www.project-syndicate.org/columnist/", "")
                 author_name <- str_replace_all(rough_name, "-", " ") 
-                print(author_name)
+                # print(author_name)
+                print(str_c(author_name, " is ", i, " of ", num_websites))
                 
                 ## get url for most recent article from author's website
                 url_author <- websites[i]
@@ -95,8 +97,10 @@ ps_scraper <- function(month) {
                 master_text <- append(master_text, article)
         }
         
+        print("out of author loop, now cleaning and writing file")
+        
         # str_replace to input final article count
-        master_text <- str_replace(master_text, "zztotalarticleszz", article_num)
+        master_text <- str_replace(master_text, "zztotalarticleszz", as.character(article_num))
         
         ## create output text file to working diretory
         writeLines(master_text, "ps.txt")

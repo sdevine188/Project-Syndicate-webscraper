@@ -1,6 +1,8 @@
 ## ps_scraper is a function to scrape the text of articles on Project Syndicate website
 ## http://www.project-syndicate.org/
 
+setwd("C:/Users/Stephen/Desktop/R/Project-Syndicate-webscraper")
+
 ## the ps_scraper function takes a two-digit month in quotes as its argument
 ## for example, for August, enter: ps_scraper("08")
 
@@ -17,6 +19,7 @@ ps_scraper <- function(month) {
         ## load XML library
         library(XML)
         library(stringr)
+        library(rvest)
         
         ## create empty list to which all articles will be appended
         master_text <- c()
@@ -32,7 +35,7 @@ ps_scraper <- function(month) {
         num_websites <- length(websites)
         article_num <- 0
         month_list <- c("January", "February", "March", "April", "May", "June", "July", "August", "September",
-                           "October", "Novermber", "December")
+                           "October", "November", "December")
         
         ## extract url for author's latest article
         
@@ -41,18 +44,27 @@ ps_scraper <- function(month) {
                 ## extract author's name for appending to beginning of article in masterText file
                 rough_name <- str_replace(websites[i], "http://www.project-syndicate.org/columnist/", "")
                 author_name <- str_replace_all(rough_name, "-", " ") 
-                print(author_name)
+                # print(author_name)
+                print(str_c(author_name, " is ", i, " of ", num_websites))
                 
                 ## get url for most recent article from author's website
                 url_author <- websites[i]
-                xml_author <- htmlTreeParse(url_author, useInternalNodes = TRUE)
-                article_node <- getNodeSet(xml_author, "//div[@id = \"tab-commentaries\"]/article[1]/a/@href")
-                url_article <- paste("http://www.project-syndicate.org", toString(article_node[1]), sep = "")
-                
+                html <- read_html(url_author)
+                article_subdomain <- html %>% html_nodes("[id = tab-latest-commentaries-content]") %>% 
+                        html_nodes("li") %>% .[[1]] %>%
+                        html_nodes("a") %>% 
+                        html_attr("href") %>% .[[1]]  
+                url_article <- paste("http://www.project-syndicate.org", toString(article_subdomain), sep = "")
+
                 ## check to see if article is written in current month.  if not, get next article
                 if(str_sub(url_article, -2, -1) != month){
-                        article_node <- getNodeSet(xml_author, "//div[@id = \"tab-commentaries\"]/article[2]/a/@href")
-                        url_article <- paste("http://www.project-syndicate.org", toString(article_node[1]), sep = "")
+                        print("getting previous article")
+                        article_subdomain <- html %>% html_nodes("[id = tab-latest-commentaries-content]") %>% 
+                                html_nodes("article") %>% .[[2]] %>%
+                                html_nodes("a") %>%
+                                html_attr("href") %>% .[[1]]               
+                        url_article <- paste("http://www.project-syndicate.org", toString(article_subdomain), sep = "")
+
                         ## print error if second article month does not match current month
                         if(str_sub(url_article, -2, -1) != month){
                                 error <- paste(author_name, "did not write an article for this month.", sep = " ")
@@ -62,9 +74,22 @@ ps_scraper <- function(month) {
                 }
                 
                 ## get article text
-                xml_article <- htmlTreeParse(url_article, useInternalNodes = TRUE)
-                title <- xpathSApply(xml_article, "//header/h1", xmlValue)
-                article <- xpathSApply(xml_article, "//div[@itemprop = \"articleBody\"]/child::p", xmlValue)
+                html_article <- read_html(url_article)
+                # title <- html_article %>% html_nodes("header") %>%
+                #         html_nodes("[itemprop = headline]") %>%
+                #         html_text()
+                title <- html_article %>% html_nodes("[itemprop = headline]") %>%
+                        html_text()
+                article <- html_article %>% html_nodes("[itemprop = articleBody]") %>% 
+                         html_nodes("p[data-line-id]") %>% html_text()
+                
+                # remove random advertisements in article text
+                article <- article[!grepl("PS On Point: Your review", article)]
+                article <- str_replace(article, "Project Syndicate needs your help to provide readers everywhere equal access to the ideas and debates shaping their lives.", "")
+                article <- article[!grepl("subscribe now", article, ignore.case = TRUE)]
+                article <- article[!grepl("Project Syndicate", article)]
+                
+                
                 article <- paste(article, collapse = " ")
                 article_num <- article_num + 1
                 article_month <- month_list[as.numeric(as.character(month))]
@@ -75,8 +100,10 @@ ps_scraper <- function(month) {
                 master_text <- append(master_text, article)
         }
         
+        print("out of author loop, now cleaning and writing file")
+        
         # str_replace to input final article count
-        master_text <- str_replace(master_text, "zztotalarticleszz", article_num)
+        master_text <- str_replace(master_text, "zztotalarticleszz", as.character(article_num))
         
         ## create output text file to working diretory
         writeLines(master_text, "ps.txt")

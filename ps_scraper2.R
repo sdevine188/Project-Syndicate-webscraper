@@ -50,7 +50,7 @@ ps_scraper <- function(month) {
                 ## get url for most recent article from author's website
                 url_author <- websites[i]
                 html <- read_html(url_author)
-                article_subdomain <- html %>% html_nodes("[id = tab-commentaries]") %>% 
+                article_subdomain <- html %>% html_nodes("[id = tab-latest-commentaries]") %>% 
                         html_nodes("article") %>% .[[1]] %>%
                         html_nodes("a") %>% 
                         html_attr("href") %>% .[[1]]       
@@ -59,7 +59,7 @@ ps_scraper <- function(month) {
                 ## check to see if article is written in current month.  if not, get next article
                 if(str_sub(url_article, -2, -1) != month){
                         print("getting previous article")
-                        article_subdomain <- html %>% html_nodes("[id = tab-commentaries]") %>% 
+                        article_subdomain <- html %>% html_nodes("[id = tab-latest-commentaries]") %>% 
                                 html_nodes("article") %>% .[[2]] %>%
                                 html_nodes("a") %>%
                                 html_attr("href") %>% .[[1]]               
@@ -75,12 +75,9 @@ ps_scraper <- function(month) {
                 
                 ## get article text
                 html_article <- read_html(url_article)
-                title <- html_article %>% html_nodes("header") %>%
-                        html_nodes("[itemprop = headline]") %>%
-                        html_text()
+                title <- html_article %>% html_nodes("[itemprop = headline]") %>% html_text()
                 article <- html_article %>% html_nodes("[itemprop = articleBody]") %>% 
-                        html_nodes("p") %>%
-                        html_text()
+                        html_nodes("p[data-line-id]") %>% html_text()
                 
                 # remove random advertisements in article text
                 article <- article[!grepl("PS On Point: Your review",

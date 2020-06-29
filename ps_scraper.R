@@ -1,11 +1,15 @@
+library(XML)
+library(tidyverse)
+library(rvest)
+
 ## ps_scraper is a function to scrape the text of articles on Project Syndicate website
 ## http://www.project-syndicate.org/
 
+# setwd
 setwd("C:/Users/Stephen/Desktop/R/Project-Syndicate-webscraper")
 
 ## the ps_scraper function takes a two-digit month in quotes as its argument
 ## for example, for August, enter: ps_scraper("08")
-
 ## ps_scraper will then scrape the articles written that month (if any) by selected authors
 
 ## note that ps_scraper is designed to scrape articles for the current or last month 
@@ -13,13 +17,6 @@ setwd("C:/Users/Stephen/Desktop/R/Project-Syndicate-webscraper")
 ## otherwise, ps_scraper will not consistently scrape articles from the specified month 
 
 ps_scraper <- function(month) {
-        
-        ## first set working directory
-        
-        ## load XML library
-        library(XML)
-        library(stringr)
-        library(rvest)
         
         ## create empty list to which all articles will be appended
         master_text <- c()
@@ -30,12 +27,12 @@ ps_scraper <- function(month) {
         ## for instance, for Michael Boskin's website, the url reads: http://www.project-syndicate.org/columnist/michael-boskin
         ## note that the list of selected authors can be modified to scrape articles from different authors
         
-        websites_list <- read.csv("PSwebsites.csv", header = TRUE)
-        websites <- apply(websites_list, 1, function(x) as.character(x))
+        websites <- read_csv("ps_columnists_websites.csv", col_types = cols(websites = col_character())) %>%
+                pull(websites)
         num_websites <- length(websites)
         article_num <- 0
         month_list <- c("January", "February", "March", "April", "May", "June", "July", "August", "September",
-                           "October", "November", "December")
+                           "October", "Novermber", "December")
         
         ## extract url for author's latest article
         
@@ -50,24 +47,24 @@ ps_scraper <- function(month) {
                 ## get url for most recent article from author's website
                 url_author <- websites[i]
                 html <- read_html(url_author)
-                article_subdomain <- html %>% html_nodes("[id = tab-latest-commentaries-content]") %>% 
-                        html_nodes("li") %>% .[[1]] %>%
+                article_subdomain <- html %>% html_nodes("[id = 'tab-latest-commentaries-content']") %>% 
+                        html_nodes("article") %>% .[[1]] %>%
                         html_nodes("a") %>% 
-                        html_attr("href") %>% .[[1]]  
-                url_article <- paste("http://www.project-syndicate.org", toString(article_subdomain), sep = "")
+                        html_attr("href") %>% .[[1]]       
+                url_article <- str_c("http://www.project-syndicate.org", article_subdomain, sep = "")
 
                 ## check to see if article is written in current month.  if not, get next article
                 if(str_sub(url_article, -2, -1) != month){
                         print("getting previous article")
-                        article_subdomain <- html %>% html_nodes("[id = tab-latest-commentaries-content]") %>% 
+                        article_subdomain <- html %>% html_nodes("[id = 'tab-latest-commentaries-content']") %>% 
                                 html_nodes("article") %>% .[[2]] %>%
                                 html_nodes("a") %>%
                                 html_attr("href") %>% .[[1]]               
-                        url_article <- paste("http://www.project-syndicate.org", toString(article_subdomain), sep = "")
+                        url_article <- str_c("http://www.project-syndicate.org", article_subdomain, sep = "")
 
                         ## print error if second article month does not match current month
                         if(str_sub(url_article, -2, -1) != month){
-                                error <- paste(author_name, "did not write an article for this month.", sep = " ")
+                                error <- str_c(author_name, "did not write an article for this month.", sep = " ")
                                 print(error)
                                 next
                         }
@@ -75,25 +72,15 @@ ps_scraper <- function(month) {
                 
                 ## get article text
                 html_article <- read_html(url_article)
-                # title <- html_article %>% html_nodes("header") %>%
-                #         html_nodes("[itemprop = headline]") %>%
-                #         html_text()
-                title <- html_article %>% html_nodes("[itemprop = headline]") %>%
-                        html_text()
-                article <- html_article %>% html_nodes("[itemprop = articleBody]") %>% 
-                         html_nodes("p[data-line-id]") %>% html_text()
+                title <- html_article %>% html_nodes("[itemprop = 'headline']") %>% html_text()
+                article <- html_article %>% html_nodes("[itemprop = 'articleBody']") %>% 
+                        html_nodes("p[data-line-id]") %>% html_text() %>%
+                        str_c(., collapse = " ")
                 
-                # remove random advertisements in article text
-                article <- article[!grepl("PS On Point: Your review", article)]
-                article <- str_replace(article, "Project Syndicate needs your help to provide readers everywhere equal access to the ideas and debates shaping their lives.", "")
-                article <- article[!grepl("subscribe now", article, ignore.case = TRUE)]
-                article <- article[!grepl("Project Syndicate", article)]
-                
-                
-                article <- paste(article, collapse = " ")
+                # add article intro
                 article_num <- article_num + 1
                 article_month <- month_list[as.numeric(as.character(month))]
-                article <- paste("Project Syndicate - ", article_month, " - ", "Article ", article_num, " of ", 
+                article <- str_c("Project Syndicate - ", article_month, " - ", "Article ", article_num, " of ", 
                                  "zztotalarticleszz", ".", author_name, ". ", title, ". ", article, "{{split}}", sep = " ")
                 
                 ## append article to master_text
